@@ -1,0 +1,13 @@
+# Terraform plugin downloads (large, re-downloadable)
+.terraform/
+
+# State files: contain real resource IDs and sometimes secrets. Never commit.
+*.tfstate
+*.tfstate.*
+
+# Crash logs and local override files
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
