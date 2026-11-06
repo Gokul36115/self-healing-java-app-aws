@@ -15,3 +15,8 @@ variable "public_subnet_cidr" {
   type        = string
   default     = "10.0.1.0/24"
 }
+
+variable "my_ip_cidr" {
+  description = "My home public IP in CIDR form, e.g. 49.1.2.3/32"
+  type        = string
+}
