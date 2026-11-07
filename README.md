@@ -2,12 +2,7 @@
 
 **A Spring Boot service that detects its own failures, recovers automatically and alerts within about a minute, delivered through a Jenkins CI/CD pipeline and provisioned on AWS with Terraform.**
 
-![Java](https://img.shields.io/badge/Java-17-ED8B00?logo=openjdk&logoColor=white)
-![Spring Boot](https://img.shields.io/badge/Spring_Boot-6DB33F?logo=springboot&logoColor=white)
-![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)
-![Jenkins](https://img.shields.io/badge/Jenkins-D24939?logo=jenkins&logoColor=white)
-![Terraform](https://img.shields.io/badge/Terraform-7B42BC?logo=terraform&logoColor=white)
-![AWS](https://img.shields.io/badge/AWS-EC2%20%7C%20VPC%20%7C%20IAM%20%7C%20CloudWatch%20%7C%20SNS-232F3E?logo=amazonwebservices&logoColor=white)
+![Tech stack](docs/tech-stack.png)
 
 ---
 
