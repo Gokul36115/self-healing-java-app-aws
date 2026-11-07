@@ -23,6 +23,28 @@ pipeline {
             }
         }
 
+        stage('Smoke Test') {
+            steps {
+                sh '''
+                    docker rm -f selfheal-smoke || true
+                    docker run -d --name selfheal-smoke -p 8082:8080 $IMAGE_NAME:$IMAGE_TAG
+                    for i in $(seq 1 30); do
+                        if curl -sf http://localhost:8082/actuator/health | grep -q '"status":"UP"'; then
+                            echo "Smoke test PASSED after $((i*2)) seconds"
+                            exit 0
+                        fi
+                        sleep 2
+                    done
+                    echo "Smoke test FAILED - app did not become healthy in 60s"
+                    docker logs selfheal-smoke | tail -50
+                    exit 1
+                '''
+            }
+            post {
+                always { sh 'docker rm -f selfheal-smoke || true' }
+            }
+        }
+
         stage('Docker Push') {
             steps {
                 withCredentials([usernamePassword(credentialsId: 'dockerhub-creds',
