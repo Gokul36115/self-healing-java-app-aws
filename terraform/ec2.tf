@@ -31,6 +31,10 @@ resource "aws_instance" "app" {
       --restart unless-stopped \
       --memory=512m \
       -p 80:8080 \
+      --log-driver=awslogs \
+      --log-opt awslogs-region=ap-south-1 \
+      --log-opt awslogs-group=${aws_cloudwatch_log_group.app.name} \
+      --log-opt awslogs-stream=selfheal-app \
       ${var.app_image}
   EOF
 
