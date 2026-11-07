@@ -35,3 +35,9 @@
 - **Symptom:** `ping` gave 100% packet loss, but `curl http://<ip>/` returned 200.
 - **Cause:** The security group allows only TCP 80 from my IP; ICMP (ping) is not allowed.
 - **Lesson:** Test the real service port (`curl`, `nc -zv`), not ping.
+
+## 8. awslogs log driver failed at boot: "no EC2 IMDS role credentials found" (404)
+- **Error:** The container failed to start from `user_data` with an awslogs error saying no IAM role credentials were found in IMDS (HTTP 404).
+- **Cause:** IAM eventual consistency. The instance profile was attached, but the role credentials weren't yet available from the metadata service when `user_data` ran `docker run`.
+- **Fix:** `user_data` now polls `http://169.254.169.254/latest/meta-data/iam/security-credentials/` (with an IMDSv2 token) for up to about 2.5 minutes, and only starts the container once credentials are available.
+- **Lesson:** In cloud bootstrap scripts, wait for the dependency to be ready instead of assuming it is.
