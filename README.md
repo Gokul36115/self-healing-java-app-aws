@@ -9,8 +9,8 @@ I work as a Middleware Administrator supporting Java applications. In production
 | Phase | Description | Status |
 |---|---|---|
 | 1 | Spring Boot app with chaos endpoints + Docker self-healing | ✅ Done |
-| 2 | Terraform: VPC, subnets, security groups, IAM, EC2 | 🔜 Next |
-| 3 | Jenkins CI/CD pipeline (build → test → image → deploy) | ⏳ Planned |
+| 2 | Terraform: VPC, subnet, IGW, route table, security group, IAM role, EC2 (tested on AWS, then destroyed) | ✅ Done |
+| 3 | Jenkins CI/CD: build → test → Docker build → smoke test → push → deploy + health check | ✅ Done |
 | 4 | CloudWatch Agent, alarms, SNS email alerts | ⏳ Planned |
 | 5 | ALB + Auto Scaling (multi-AZ) + chaos demo | ⏳ Planned |
 | 6 | Kubernetes deployment with liveness/readiness probes | ⏳ Planned |
@@ -47,6 +47,17 @@ I work as a Middleware Administrator supporting Java applications. In production
 
 ## Tech stack
 Java 17 · Spring Boot · Maven · Docker · Linux (Ubuntu) · Git
+
+## CI/CD pipeline (Jenkins)
+![Jenkins pipeline](docs/screenshots/02-jenkins-pipeline.png)
+
+| Stage | What it does |
+|---|---|
+| Build & Test | `mvnw clean package` with unit tests |
+| Docker Build | Builds image tagged `build-<N>` and `latest` |
+| Smoke Test | Runs the new image, waits for `/actuator/health` = UP, fails the build if not |
+| Docker Push | Pushes to Docker Hub using Jenkins credentials (token masked in logs) |
+| Deploy | Replaces the running container and verifies health after deploy |
 
 *Coming next:* AWS (VPC, EC2, IAM, ALB, Auto Scaling, CloudWatch, SNS) · Terraform · Jenkins · Kubernetes
 
