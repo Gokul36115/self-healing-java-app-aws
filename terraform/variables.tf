@@ -32,3 +32,8 @@ variable "app_image" {
   type        = string
   default     = "gokul36115/selfheal-app:v2"
 }
+
+variable "alert_email" {
+  description = "Email address that receives CloudWatch alarm notifications"
+  type        = string
+}
