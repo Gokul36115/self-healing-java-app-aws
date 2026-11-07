@@ -27,6 +27,20 @@ resource "aws_instance" "app" {
     set -euxo pipefail
     dnf install -y docker
     systemctl enable --now docker
+
+    # Wait until the IAM role credentials are available from IMDS (up to ~2.5 min)
+    for i in $(seq 1 30); do
+      TOKEN=$(curl -s -X PUT http://169.254.169.254/latest/api/token \
+        -H "X-aws-ec2-metadata-token-ttl-seconds: 60")
+      if curl -sf -H "X-aws-ec2-metadata-token: $TOKEN" \
+        http://169.254.169.254/latest/meta-data/iam/security-credentials/ ; then
+        echo "IAM role credentials available"
+        break
+      fi
+      echo "Waiting for IAM role credentials... ($i)"
+      sleep 5
+    done
+
     docker run -d --name selfheal \
       --restart unless-stopped \
       --memory=512m \
