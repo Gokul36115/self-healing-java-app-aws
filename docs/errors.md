@@ -15,3 +15,23 @@
 - **Cause:** JVM default heap = 25% of container limit (`MaxHeapSize=134217728` ≈ 128 MB of 512 MB). Heap filled up long before the container limit, so the JVM stayed alive in a broken state. Docker's restart policy only reacts when the process exits.
 - **Fix:** Added `-XX:+ExitOnOutOfMemoryError` to the Dockerfile ENTRYPOINT (image v2). JVM now exits with code 3 on OOM and `--restart unless-stopped` recovers it automatically.
 - **Verified:** `docker events` showed `exitCode=3`, RestartCount 0 → 1, log line `Terminating due to java.lang.OutOfMemoryError`, container back to `(healthy)`.
+
+## 4. Jenkins apt repo: NO_PUBKEY 7198F4B714ABFC68
+- **Error:** `apt-get update` showed `NO_PUBKEY` for `pkg.jenkins.io`.
+- **Cause:** Jenkins' repo signing key had changed; the old key on the VM couldn't verify it, so apt skipped that repo.
+- **Impact:** Other repos (Ubuntu, Docker, HashiCorp) updated fine. Fixed in Phase 3.
+
+## 5. IAM user had no permissions (implicit deny)
+- **Error:** `Access denied to iam:ListUsers ... no identity-based policy allows the action`
+- **Cause:** Created the `Admins` group with AdministratorAccess but didn't add `gokul-admin` to it. IAM denies everything by default.
+- **Fix:** Logged in as root, added the user to the group, and confirmed IAM users (1).
+
+## 6. git push failed from VS Code terminal
+- **Error:** `ECONNREFUSED /run/user/1000/vscode-git-*.sock` then `Authentication failed`
+- **Cause:** VS Code had reconnected, and the old terminal still pointed to VS Code's old login helper, so Git sent no credentials.
+- **Fix:** Opened a new terminal and pushed again.
+
+## 7. ping to EC2 failed but the app worked
+- **Symptom:** `ping` gave 100% packet loss, but `curl http://<ip>/` returned 200.
+- **Cause:** The security group allows only TCP 80 from my IP; ICMP (ping) is not allowed.
+- **Lesson:** Test the real service port (`curl`, `nc -zv`), not ping.
