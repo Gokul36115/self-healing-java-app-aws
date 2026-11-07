@@ -6,6 +6,14 @@
 
 ---
 
+## Contents
+- [The problem](#the-problem) · [Highlights](#highlights) · [Architecture](#architecture) · [Tech stack](#tech-stack) · [Project structure](#project-structure)
+- [1. Application and Docker self-healing](#1-application-and-docker-self-healing)
+- [2. Infrastructure as Code (Terraform)](#2-infrastructure-as-code-terraform)
+- [3. CI/CD pipeline (Jenkins)](#3-cicd-pipeline-jenkins)
+- [4. Monitoring and alerting (CloudWatch + SNS)](#4-monitoring-and-alerting-cloudwatch--sns)
+- [Run it yourself](#run-it-yourself) · [Security and cost decisions](#security-and-cost-decisions) · [Troubleshooting log](#troubleshooting-log)
+
 ## The problem
 In Java middleware operations, JVM crashes, `OutOfMemoryError`s and HTTP 500s are usually discovered by a user or a monitoring ticket, and then fixed by hand: restart the server, check the logs, notify the team. This project turns that manual cycle into an automated one:
 
@@ -31,6 +39,47 @@ In Java middleware operations, JVM crashes, `OutOfMemoryError`s and HTTP 500s ar
 | Infrastructure as Code | Terraform (AWS provider) |
 | Cloud | AWS VPC, EC2, IAM, Security Groups, CloudWatch Logs, CloudWatch Alarms, SNS |
 | OS / tooling | Linux (Ubuntu, Amazon Linux 2023), Git, GitHub |
+
+## Project structure
+
+```text
+self-healing-java-app-aws/
+├── app/                                  # Spring Boot application
+│   ├── src/main/java/com/gokul/selfheal/
+│   │   ├── SelfhealAppApplication.java   # application entry point
+│   │   └── ChaosController.java          # chaos endpoints: /api/error, /slow, /memory, /crash
+│   ├── src/main/resources/
+│   │   └── application.properties        # application name
+│   ├── src/test/java/...                 # unit test run by the pipeline
+│   ├── Dockerfile                        # multi-stage build, non-root user, HEALTHCHECK
+│   ├── pom.xml                           # Maven build (Java 17, Spring Boot)
+│   └── mvnw, .mvn/                       # Maven wrapper (no local Maven install needed)
+│
+├── terraform/                            # AWS infrastructure as code (19 resources)
+│   ├── providers.tf                      # AWS provider, region, default tags
+│   ├── variables.tf                      # inputs: CIDRs, instance type, image, my IP, alert e-mail
+│   ├── network.tf                        # VPC, public subnet, internet gateway, route table
+│   ├── security.tf                       # security group: HTTP 80 from one IP, no SSH
+│   ├── iam.tf                            # EC2 role + instance profile (SSM, CloudWatch)
+│   ├── ec2.tf                            # EC2 instance, IMDSv2, encrypted disk, user_data
+│   ├── logs.tf                           # CloudWatch log group + OOM metric filter
+│   ├── alarms.tf                         # OOM alarm + EC2 status-check auto-recover alarm
+│   ├── sns.tf                            # SNS topic + e-mail subscription
+│   ├── outputs.tf                        # instance_id, public_ip, app_url
+│   └── .terraform.lock.hcl               # pinned provider versions
+│
+├── Jenkinsfile                           # CI/CD: build → test → image → smoke test → push → deploy
+│
+├── docs/
+│   ├── architecture.png                  # architecture diagram
+│   ├── tech-stack.png                    # tech stack banner
+│   ├── errors.md                         # 8 real errors: symptom, root cause, fix
+│   └── screenshots/                      # evidence for each phase
+│
+└── README.md
+```
+
+> `terraform.tfvars`, `*.tfstate` and plan files are git-ignored: no IPs, e-mails, state or secrets are committed.
 
 ---
 
@@ -114,11 +163,30 @@ Code: [`Jenkinsfile`](Jenkinsfile)
 
 ## Run it yourself
 
+**Clone**
+
+    git clone https://github.com/Gokul36115/self-healing-java-app-aws.git
+    cd self-healing-java-app-aws
+
 **Locally with Docker**
 
     cd app
     docker build -t selfheal-app .
     docker run -d --name selfheal --restart unless-stopped --memory=512m -p 8081:8080 selfheal-app
+    curl http://localhost:8081/actuator/health
+
+**Break it and watch it heal**
+
+    # 1. Crash the JVM, then watch Docker bring it back
+    curl http://localhost:8081/api/crash
+    docker ps                                              # status goes from "Restarting" back to "Up (healthy)"
+    docker inspect -f '{{.RestartCount}}' selfheal         # restart count goes up by 1
+
+    # 2. Cause an OutOfMemoryError (call it a few times)
+    for i in 1 2 3 4 5 6 7 8 9 10; do curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8081/api/memory; done
+    docker events --filter container=selfheal --since 2m --until 0s   # look for "die" with exitCode=3
+
+    # 3. Confirm it is healthy again
     curl http://localhost:8081/actuator/health
 
 **On AWS with Terraform:** create `terraform/terraform.tfvars` (git-ignored):
